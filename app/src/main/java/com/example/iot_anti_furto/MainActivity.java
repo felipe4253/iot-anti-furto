@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -60,7 +61,13 @@ public class MainActivity extends AppCompatActivity {
 
                     //TODO do some task based on recieved string
                     if (MENSAGEM_ALERTA.equals(string_recieved)) {
+
                         Toast.makeText(getApplicationContext(),"ALERTA!",Toast.LENGTH_SHORT).show();
+
+                        //TODO - Criar algum efeito visual para tocar junto com a sirene
+                        //Toca o som de sirene
+                        MediaPlayer mp = MediaPlayer.create(getApplicationContext(), R.raw.police_siren);
+                        mp.start();
                     }
 
                     break;
