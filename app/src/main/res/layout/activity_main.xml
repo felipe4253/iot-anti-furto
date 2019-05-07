@@ -34,6 +34,9 @@
 
     </android.support.design.widget.AppBarLayout>
 
-    <include layout="@layout/content_main" />
+    <include
+        layout="@layout/content_main"
+        android:background="#EC1F1F"
+        android:backgroundTint="#00B82727" />
 
 </android.support.design.widget.CoordinatorLayout>

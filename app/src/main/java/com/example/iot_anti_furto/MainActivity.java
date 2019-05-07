@@ -6,6 +6,10 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.drawable.AnimationDrawable;
+import android.graphics.drawable.ColorDrawable;
+import android.hardware.SensorEvent;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Handler;
@@ -15,7 +19,10 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.IOException;
@@ -29,6 +36,7 @@ public class MainActivity extends AppCompatActivity {
 
     public static final int REQUEST_ENABLE_BT=1;
     ListView lv_paired_devices;
+    Button btn_enviar_msg;
     Set<BluetoothDevice> set_pairedDevices;
     ArrayAdapter adapter_paired_devices;
     BluetoothAdapter bluetoothAdapter;
@@ -40,11 +48,20 @@ public class MainActivity extends AppCompatActivity {
     public static final int NO_SOCKET_FOUND=4;
 
 
+    public BluetoothSocket getSocket() {
+        return socket;
+    }
+
+    public void setSocket(BluetoothSocket socket) {
+        this.socket = socket;
+    }
+
+    private BluetoothSocket socket = null;
+
+
     String bluetooth_message="00";
+
     public static String MENSAGEM_ALERTA = "ALERTA";
-
-
-
 
     @SuppressLint("HandlerLeak")
     Handler mHandler=new Handler() {
@@ -58,6 +75,7 @@ public class MainActivity extends AppCompatActivity {
 
                     byte[] readbuf=(byte[])msg_type.obj;
                     String string_recieved = new String(readbuf);
+                    Toast.makeText(getApplicationContext(),"Lendo mensagem recebida... " + string_recieved,Toast.LENGTH_SHORT).show();
 
                     //TODO do some task based on recieved string
                     if (MENSAGEM_ALERTA.equals(string_recieved)) {
@@ -68,6 +86,29 @@ public class MainActivity extends AppCompatActivity {
                         //Toca o som de sirene
                         MediaPlayer mp = MediaPlayer.create(getApplicationContext(), R.raw.police_siren);
                         mp.start();
+
+                        //Alterar cor para #C00808
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+
+                                //Remover a lista de devices
+                                LinearLayout linearLayoutMain = findViewById(R.id.main_linear_view);
+                                final AnimationDrawable drawable = new AnimationDrawable();
+                                final Handler handler = new Handler();
+
+                                drawable.addFrame(new ColorDrawable(Color.RED), 400);
+                                drawable.addFrame(new ColorDrawable(Color.BLUE), 400);
+                                drawable.setOneShot(false);
+                                linearLayoutMain.setBackground(drawable);
+                                handler.postDelayed(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        drawable.start();
+                                    }
+                                }, 100);
+                            }
+                        });
                     }
 
                     break;
@@ -85,7 +126,7 @@ public class MainActivity extends AppCompatActivity {
                     break;
 
                 case CONNECTING:
-                    Toast.makeText(getApplicationContext(),"Conectando o dispositivo...",Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getApplicationContext(),"Conectando ao dispositivo...",Toast.LENGTH_SHORT).show();
                     break;
 
                 case NO_SOCKET_FOUND:
@@ -106,6 +147,17 @@ public class MainActivity extends AppCompatActivity {
         start_accepting_connection();
         initialize_clicks();
 
+        DetectorMovimento.getInstance(MainActivity.this.getApplicationContext()).addListener(new DetectorMovimento.Listener() {
+
+            @Override
+            public void onMotionDetected(SensorEvent event, float acceleration) {
+                if (acceleration > 0.5) {
+                    Toast.makeText(getApplicationContext(),"Movimento Detectado. Alertando dispositivo vigilante!",Toast.LENGTH_SHORT).show();
+                    MainActivity.this.bluetooth_message = MainActivity.MENSAGEM_ALERTA;
+                    mHandler.obtainMessage(MESSAGE_WRITE, MainActivity.this.getSocket()).sendToTarget();
+                }
+            }
+        });
     }
 
     public void start_accepting_connection() {
@@ -181,6 +233,7 @@ public class MainActivity extends AppCompatActivity {
 
         public void run() {
             BluetoothSocket socket = null;
+
             // Keep listening until exception occurs or a socket is returned
             while (true) {
                 try {
@@ -190,10 +243,35 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 // If a connection was accepted
-                if (socket != null)
-                {
+                if (socket != null) {
+                    MainActivity.this.setSocket(socket);
                     // Do work to manage the connection (in a separate thread)
                     mHandler.obtainMessage(CONNECTED).sendToTarget();
+                    ConnectedThread connectedThread = new ConnectedThread(socket);
+                    connectedThread.start();
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+
+                            //Remover a lista de devices
+                            LinearLayout linearLayout = (LinearLayout)lv_paired_devices.getParent();
+                            linearLayout.removeAllViews();
+
+                            //Adicionar mensagem de modo vigiado
+                            TextView valueTV = new TextView(MainActivity.this);
+                            valueTV.setText("Modo Vigilante Ativado");
+                            valueTV.setTextSize(50);
+                            valueTV.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+                            valueTV.setLayoutParams(
+                                    new LinearLayout.LayoutParams(
+                                            LinearLayout.LayoutParams.MATCH_PARENT,
+                                            LinearLayout.LayoutParams.WRAP_CONTENT)
+                            );
+
+                            linearLayout.addView(valueTV);
+                        }
+                    });
+
                 }
             }
         }
@@ -230,15 +308,41 @@ public class MainActivity extends AppCompatActivity {
                 mmSocket.connect();
             } catch (IOException connectException) {
                 // Unable to connect; close the socket and get out
+                    Toast.makeText(getApplicationContext(),"Não foi possível conectar ao dispositivo.",Toast.LENGTH_SHORT).show();
                 try {
                     mmSocket.close();
-                } catch (IOException closeException) { }
+                } catch (IOException closeException) {
+                }
                 return;
             }
 
             // Do work to manage the connection (in a separate thread)
-            //            bluetooth_message = "Initial message"
-            //            mHandler.obtainMessage(MESSAGE_WRITE,mmSocket).sendToTarget();
+            MainActivity.this.setSocket(mmSocket);
+            DetectorMovimento.getInstance(MainActivity.this.getApplicationContext()).start();
+
+            runOnUiThread(new Runnable() {
+              @Override
+              public void run() {
+
+                                  //Remover a lista de devices
+                LinearLayout linearLayout = (LinearLayout)lv_paired_devices.getParent();
+                linearLayout.removeAllViews();
+
+                //Adicionar mensagem de modo vigiado
+                TextView valueTV = new TextView(MainActivity.this);
+                valueTV.setText("Modo Anti-Furto Ativado.");
+                valueTV.setTextSize(50);
+                valueTV.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+                valueTV.setLayoutParams(
+                    new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT)
+                    );
+
+                linearLayout.addView(valueTV);
+              }
+            });
+
         }
 
         /** Will cancel an in-progress connection, and close the socket */
@@ -271,7 +375,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         public void run() {
-            byte[] buffer = new byte[2];  // buffer store for the stream
+            byte[] buffer = new byte[6];  // buffer store for the stream
             int bytes; // bytes returned from read()
 
             // Keep listening to the InputStream until an exception occurs
@@ -292,7 +396,10 @@ public class MainActivity extends AppCompatActivity {
         public void write(byte[] bytes) {
             try {
                 mmOutStream.write(bytes);
-            } catch (IOException e) { }
+            } catch (IOException e) {
+                Toast.makeText(getApplicationContext(),"Ocorreu um erro na tentativa de enviar os dados. Verifique os logs para mais detalhes. " +
+                        e.getMessage(),Toast.LENGTH_LONG).show();
+            }
         }
 
         /* Call this from the main activity to shutdown the connection */

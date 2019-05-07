@@ -8,33 +8,33 @@
     tools:context=".MainActivity"
     tools:showIn="@layout/activity_main">
 
-    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-        android:orientation="vertical"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
         <LinearLayout
-            android:orientation="vertical"
+            android:id="@+id/main_linear_view"
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="match_parent"
+            android:orientation="vertical">
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Selecione o dispositivo a ser vigiado ou aguarde conexão caso este seja o dispositivo a ser vigiado."
+                android:text="Selecione o dispositivo vigilante ou aguarde conexão."
                 android:textAppearance="@style/TextAppearance.AppCompat.Large" />
 
             <ListView
                 android:id="@+id/lv_paired_devices"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:layout_weight="1">
-            </ListView>
+                android:layout_weight="1"></ListView>
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Certifique-se de que o outro dispositivo está está pareado e conectado."
+                android:text="Certifique-se de que o outro dispositivo está pareado."
                 android:textAppearance="@style/TextAppearance.AppCompat.Medium"
                 android:textColor="@color/colorAccent"
                 android:textStyle="bold" />
